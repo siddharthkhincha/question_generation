@@ -87,6 +87,7 @@ class QGPipeline:
             max_length=32,
         )
         
+#         dec = [self.ans_tokenizer.decode(ids, skip_special_tokens=False) for ids in outs]
         dec = [self.ans_tokenizer.decode(ids, skip_special_tokens=True) for ids in outs]
         answers = [item.split('<sep>') for item in dec]
         answers = [i[:-1] for i in answers]
@@ -133,12 +134,13 @@ class QGPipeline:
         inputs = []
         for i, answer in enumerate(answers):
             if len(answer) == 0: continue
-            sent = sents[i]
             for answer_text in answer:
+                sent = sents[i]
                 sents_copy = sents[:]
                 
                 answer_text = answer_text.strip()
                 
+#                 ans_start_idx = sent.index(answer_text)
                 try:
                     ans_start_idx = sent.index(answer_text)
                 except:
@@ -309,81 +311,13 @@ SUPPORTED_TASKS = {
 }
 
 def pipeline(
-    task: str,
-    model: Optional = None,
-    tokenizer: Optional[Union[str, PreTrainedTokenizer]] = None,
+    task: "question-generation",
+    model: PreTrainedModel = None,
+    tokenizer: PreTrainedTokenizer = None,
     qg_format: Optional[str] = "highlight",
-    ans_model: Optional = None,
-    ans_tokenizer: Optional[Union[str, PreTrainedTokenizer]] = None,
+    ans_model: PreTrainedModel = None,
+    ans_tokenizer: PreTrainedTokenizer = None,
     use_cuda: Optional[bool] = True,
     **kwargs,
 ):
-    # Retrieve the task
-    if task not in SUPPORTED_TASKS:
-        raise KeyError("Unknown task {}, available tasks are {}".format(task, list(SUPPORTED_TASKS.keys())))
-
-    targeted_task = SUPPORTED_TASKS[task]
-    task_class = targeted_task["impl"]
-
-    # Use default model/config/tokenizer for the task if no model is provided
-    if model is None:
-        model = targeted_task["default"]["model"]
-    
-    # Try to infer tokenizer from model or config name (if provided as str)
-    if tokenizer is None:
-        if isinstance(model, str):
-            tokenizer = model
-        else:
-            # Impossible to guest what is the right tokenizer here
-            raise Exception(
-                "Impossible to guess which tokenizer to use. "
-                "Please provided a PretrainedTokenizer class or a path/identifier to a pretrained tokenizer."
-            )
-    
-    # Instantiate tokenizer if needed
-    if isinstance(tokenizer, (str, tuple)):
-        if isinstance(tokenizer, tuple):
-            # For tuple we have (tokenizer name, {kwargs})
-            tokenizer = AutoTokenizer.from_pretrained(tokenizer[0], **tokenizer[1])
-        else:
-            tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-    
-    # Instantiate model if needed
-    if isinstance(model, str):
-        model = AutoModelForSeq2SeqLM.from_pretrained(model)
-    
-    if task == "question-generation":
-        if ans_model is None:
-            # load default ans model
-            ans_model = targeted_task["default"]["ans_model"]
-            ans_tokenizer = AutoTokenizer.from_pretrained(ans_model)
-            ans_model = AutoModelForSeq2SeqLM.from_pretrained(ans_model)
-        else:
-            # Try to infer tokenizer from model or config name (if provided as str)
-            if ans_tokenizer is None:
-                if isinstance(ans_model, str):
-                    ans_tokenizer = ans_model
-                else:
-                    # Impossible to guest what is the right tokenizer here
-                    raise Exception(
-                        "Impossible to guess which tokenizer to use. "
-                        "Please provided a PretrainedTokenizer class or a path/identifier to a pretrained tokenizer."
-                    )
-            
-            # Instantiate tokenizer if needed
-            if isinstance(ans_tokenizer, (str, tuple)):
-                if isinstance(ans_tokenizer, tuple):
-                    # For tuple we have (tokenizer name, {kwargs})
-                    ans_tokenizer = AutoTokenizer.from_pretrained(ans_tokenizer[0], **ans_tokenizer[1])
-                else:
-                    ans_tokenizer = AutoTokenizer.from_pretrained(ans_tokenizer)
-
-            if isinstance(ans_model, str):
-                ans_model = AutoModelForSeq2SeqLM.from_pretrained(ans_model)
-    
-    if task == "e2e-qg":
-        return task_class(model=model, tokenizer=tokenizer, use_cuda=use_cuda)
-    elif task == "question-generation":
-        return task_class(model=model, tokenizer=tokenizer, ans_model=ans_model, ans_tokenizer=ans_tokenizer, qg_format=qg_format, use_cuda=use_cuda)
-    else:
-        return task_class(model=model, tokenizer=tokenizer, ans_model=model, ans_tokenizer=tokenizer, qg_format=qg_format, use_cuda=use_cuda)
+  return QGPipeline(model=model, tokenizer=tokenizer, ans_model=ans_model, ans_tokenizer=ans_tokenizer, qg_format=qg_format, use_cuda=use_cuda)
