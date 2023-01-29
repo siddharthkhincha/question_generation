@@ -70,8 +70,8 @@ class QGPipeline:
         inputs = self._tokenize(inputs, padding=True, truncation=True)
         
         outs = self.model.generate(
-            input_ids=inputs['input_ids'].to(self.device), 
-            attention_mask=inputs['attention_mask'].to(self.device), 
+            input_ids=inputs['input_ids'], 
+            attention_mask=inputs['attention_mask'], 
             max_length=32,
             num_beams=4,
         )
@@ -84,8 +84,8 @@ class QGPipeline:
         inputs = self._tokenize(inputs, padding=True, truncation=True)
 
         outs = self.ans_model.generate(
-            input_ids=inputs['input_ids'].to(self.device), 
-            attention_mask=inputs['attention_mask'].to(self.device), 
+            input_ids=inputs['input_ids'], 
+            attention_mask=inputs['attention_mask'], 
             max_length=32,
         )
         
