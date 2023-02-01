@@ -93,7 +93,7 @@ class QGPipeline:
         dec = [self.ans_tokenizer.decode(ids, skip_special_tokens=True) for ids in outs]
         answers = [item.split('<sep>') for item in dec]
         answers = [i[:-1] for i in answers]
-        answers = answers[:4]
+#         answers = answers[:4]
         
         return sents, answers
     
