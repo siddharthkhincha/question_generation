@@ -12,11 +12,11 @@ from transformers import(
     PreTrainedTokenizer,
 )
 
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 class QGPipeline:
     """Poor man's QG pipeline"""
-    def _init_(
+    def __init__(
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
@@ -55,7 +55,7 @@ class QGPipeline:
 
         self.model_type = "t5"
 
-    def _call_(self, inputs: str):
+    def __call__(self, inputs: str):
         inputs = " ".join(inputs.split())
         sents, answers = self._extract_answers(inputs)
         flat_answers = list(itertools.chain(*answers))
@@ -180,123 +180,6 @@ class QGPipeline:
         return examples
 
     
-class MultiTaskQAQGPipeline(QGPipeline):
-    def _init_(self, **kwargs):
-        super()._init_(**kwargs)
-    
-    def _call_(self, inputs: Union[Dict, str]):
-        if type(inputs) is str:
-            # do qg
-            return super()._call_(inputs)
-        else:
-            # do qa
-            return self._extract_answer(inputs["question"], inputs["context"])
-    
-    def _prepare_inputs_for_qa(self, question, context):
-        source_text = f"question: {question}  context: {context}"
-        if self.model_type == "t5":
-            source_text = source_text + " </s>"
-        return  source_text
-    
-    def _extract_answer(self, question, context):
-        source_text = self._prepare_inputs_for_qa(question, context)
-        inputs = self._tokenize([source_text], padding=False)
-    
-        outs = self.model.generate(
-            input_ids=inputs['input_ids'].to(self.device), 
-            attention_mask=inputs['attention_mask'].to(self.device), 
-            max_length=16,
-        )
-
-        answer = self.tokenizer.decode(outs[0], skip_special_tokens=True)
-        return answer
-
-
-class E2EQGPipeline:
-    def _init_(
-        self,
-        model: PreTrainedModel,
-        tokenizer: PreTrainedTokenizer,
-        use_cuda: bool
-    ) :
-
-        self.model = model
-        self.tokenizer = tokenizer
-
-        self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
-        self.model.to(self.device)
-
-        assert self.model._class.name_ in ["T5ForConditionalGeneration", "BartForConditionalGeneration"]
-        
-        if "T5ForConditionalGeneration" in self.model._class.name_:
-            self.model_type = "t5"
-        else:
-            self.model_type = "bart"
-        
-        self.default_generate_kwargs = {
-            "max_length": 256,
-            "num_beams": 4,
-            "length_penalty": 1.5,
-            "no_repeat_ngram_size": 3,
-            "early_stopping": True,
-        }
-    
-    def _call_(self, context: str, **generate_kwargs):
-        inputs = self._prepare_inputs_for_e2e_qg(context)
-
-        # TODO: when overrding default_generate_kwargs all other arguments need to be passsed
-        # find a better way to do this
-        if not generate_kwargs:
-            generate_kwargs = self.default_generate_kwargs
-        
-        input_length = inputs["input_ids"].shape[-1]
-        
-        # max_length = generate_kwargs.get("max_length", 256)
-        # if input_length < max_length:
-        #     logger.warning(
-        #         "Your max_length is set to {}, but you input_length is only {}. You might consider decreasing max_length manually, e.g. summarizer('...', max_length=50)".format(
-        #             max_length, input_length
-        #         )
-        #     )
-
-        outs = self.model.generate(
-            input_ids=inputs['input_ids'].to(self.device), 
-            attention_mask=inputs['attention_mask'].to(self.device),
-            **generate_kwargs
-        )
-
-        prediction = self.tokenizer.decode(outs[0], skip_special_tokens=True)
-        questions = prediction.split("<sep>")
-        questions = [question.strip() for question in questions[:-1]]
-        return questions
-    
-    def _prepare_inputs_for_e2e_qg(self, context):
-        source_text = f"generate questions: {context}"
-        if self.model_type == "t5":
-            source_text = source_text + " </s>"
-        
-        inputs = self._tokenize([source_text], padding=False)
-        return inputs
-    
-    def _tokenize(
-        self,
-        inputs,
-        padding=True,
-        truncation=True,
-        add_special_tokens=True,
-        max_length=512
-    ):
-        inputs = self.tokenizer.batch_encode_plus(
-            inputs, 
-            max_length=max_length,
-            add_special_tokens=add_special_tokens,
-            truncation=truncation,
-            padding="max_length" if padding else False,
-            pad_to_max_length=padding,
-            return_tensors="pt"
-        )
-        return inputs
-
 
 SUPPORTED_TASKS = {
     "question-generation": {
