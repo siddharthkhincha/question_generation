@@ -188,18 +188,6 @@ SUPPORTED_TASKS = {
             "model": "valhalla/t5-small-qg-hl",
             "ans_model": "valhalla/t5-small-qa-qg-hl",
         }
-    },
-    "multitask-qa-qg": {
-        "impl": MultiTaskQAQGPipeline,
-        "default": {
-            "model": "valhalla/t5-small-qa-qg-hl",
-        }
-    },
-    "e2e-qg": {
-        "impl": E2EQGPipeline,
-        "default": {
-            "model": "valhalla/t5-small-e2e-qg",
-        }
     }
 }
 
