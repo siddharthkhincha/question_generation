@@ -12,18 +12,21 @@ from transformers import(
     PreTrainedTokenizer,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(_name_)
 
 class QGPipeline:
     """Poor man's QG pipeline"""
-    def __init__(
+    def _init_(
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
         ans_model: PreTrainedModel,
         ans_tokenizer: PreTrainedTokenizer,
         qg_format: str,
-        use_cuda: bool
+        use_cuda: bool,
+        ans_max_length: int,
+        ques_max_length: int,
+        num_beams: int,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -32,6 +35,10 @@ class QGPipeline:
         self.ans_tokenizer = ans_tokenizer
 
         self.qg_format = qg_format
+        self.ans_max_length = ans_max_length
+        self.ques_max_length = ques_max_length
+        self.num_beams = num_beams
+
 
 #         self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
 #         self.model.to(self.device)
@@ -39,16 +46,16 @@ class QGPipeline:
 #         if self.ans_model is not self.model:
 #             self.ans_model.to(self.device)
 
-#         assert self.model.__class__.__name__ in ["T5ForConditionalGeneration", "BartForConditionalGeneration"]
+#         assert self.model._class.name_ in ["T5ForConditionalGeneration", "BartForConditionalGeneration"]
         
-#         if "T5ForConditionalGeneration" in self.model.__class__.__name__:
+#         if "T5ForConditionalGeneration" in self.model._class.name_:
 #             self.model_type = "t5"
 #         else:
 #             self.model_type = "bart"
 
         self.model_type = "t5"
 
-    def __call__(self, inputs: str):
+    def _call_(self, inputs: str):
         inputs = " ".join(inputs.split())
         sents, answers = self._extract_answers(inputs)
         flat_answers = list(itertools.chain(*answers))
@@ -72,8 +79,8 @@ class QGPipeline:
         outs = self.model.generate(
             input_ids=inputs['input_ids'], 
             attention_mask=inputs['attention_mask'], 
-            max_length=32,
-            num_beams = 2,
+            max_length= self.ques_max_length,
+            num_beams = self.num_beams,
         )
         
         questions = [self.tokenizer.decode(ids, skip_special_tokens=True) for ids in outs]
@@ -86,7 +93,7 @@ class QGPipeline:
         outs = self.ans_model.generate(
             input_ids=inputs['input_ids'], 
             attention_mask=inputs['attention_mask'], 
-            max_length=32,
+            max_length= self.ans_max_length,
         )
         
 #         dec = [self.ans_tokenizer.decode(ids, skip_special_tokens=False) for ids in outs]
@@ -174,13 +181,13 @@ class QGPipeline:
 
     
 class MultiTaskQAQGPipeline(QGPipeline):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def _init_(self, **kwargs):
+        super()._init_(**kwargs)
     
-    def __call__(self, inputs: Union[Dict, str]):
+    def _call_(self, inputs: Union[Dict, str]):
         if type(inputs) is str:
             # do qg
-            return super().__call__(inputs)
+            return super()._call_(inputs)
         else:
             # do qa
             return self._extract_answer(inputs["question"], inputs["context"])
@@ -206,7 +213,7 @@ class MultiTaskQAQGPipeline(QGPipeline):
 
 
 class E2EQGPipeline:
-    def __init__(
+    def _init_(
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
@@ -219,9 +226,9 @@ class E2EQGPipeline:
         self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
         self.model.to(self.device)
 
-        assert self.model.__class__.__name__ in ["T5ForConditionalGeneration", "BartForConditionalGeneration"]
+        assert self.model._class.name_ in ["T5ForConditionalGeneration", "BartForConditionalGeneration"]
         
-        if "T5ForConditionalGeneration" in self.model.__class__.__name__:
+        if "T5ForConditionalGeneration" in self.model._class.name_:
             self.model_type = "t5"
         else:
             self.model_type = "bart"
@@ -234,7 +241,7 @@ class E2EQGPipeline:
             "early_stopping": True,
         }
     
-    def __call__(self, context: str, **generate_kwargs):
+    def _call_(self, context: str, **generate_kwargs):
         inputs = self._prepare_inputs_for_e2e_qg(context)
 
         # TODO: when overrding default_generate_kwargs all other arguments need to be passsed
@@ -321,6 +328,10 @@ def pipeline(
     ans_model: PreTrainedModel = None,
     ans_tokenizer: PreTrainedTokenizer = None,
     use_cuda: Optional[bool] = True,
+    ans_max_length: Optional[int] = 32,
+    ques_max_length: Optional[int] = 32,
+    num_beams: Optional[int] = 4,
     **kwargs,
 ):
-  return QGPipeline(model=model, tokenizer=tokenizer, ans_model=ans_model, ans_tokenizer=ans_tokenizer, qg_format=qg_format, use_cuda=use_cuda)
+  return QGPipeline(model=model, tokenizer=tokenizer, ans_model=ans_model, ans_tokenizer=ans_tokenizer, qg_format=qg_format, use_cuda=use_cuda,
+  ans_max_length = ans_max_length, ques_max_length = ques_max_length, num_beams = num_beams)
