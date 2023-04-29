@@ -185,8 +185,8 @@ SUPPORTED_TASKS = {
     "question-generation": {
         "impl": QGPipeline,
         "default": {
-            "model": "valhalla/t5-small-qg-hl",
-            "ans_model": "valhalla/t5-small-qa-qg-hl",
+            "model": "google/flan-t5-base",
+            "ans_model": "google/flan-t5-base",
         }
     }
 }
